@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // OpenVPN request/response structs
@@ -64,6 +67,9 @@ func (app *application) AddOpenVPNProfileHandler(w http.ResponseWriter, r *http.
 		app.serverErrorResponse(w, r, fmt.Errorf("failed to create OpenVPN profile: %v", err))
 		return
 	}
+
+	// Wait a moment for file to be written
+	time.Sleep(1 * time.Second)
 
 	// Verify profile was created
 	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
@@ -199,24 +205,21 @@ func (app *application) GetOpenVPNProfilesHandler(w http.ResponseWriter, r *http
 	}
 }
 
-// Helper function to execute commands on the host (not in container)
+// Helper function to execute commands on the host using os/exec
 func (app *application) dockerExecHost(cmd []string) (string, error) {
-	// This executes commands directly on the host machine
-	// You can use the existing dockerExec but targeting the host or use exec.Command
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// Option 1: If running in a privileged container with host access
-	return app.dockerExec("goserver", cmd)
+	// Execute command directly since /root is mounted
+	execCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	output, err := execCmd.CombinedOutput()
 
-	// Option 2: If you need to execute on actual host, use this instead:
-	/*
-		ctx := context.Background()
-		execCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-		output, err := execCmd.CombinedOutput()
-		if err != nil {
-			return "", fmt.Errorf("command failed: %v, output: %s", err, string(output))
-		}
-		return string(output), nil
-	*/
+	if err != nil {
+		return string(output), fmt.Errorf("command failed: %v, output: %s", err, string(output))
+	}
+
+	return string(output), nil
 }
 
 // Helper function to validate client names
