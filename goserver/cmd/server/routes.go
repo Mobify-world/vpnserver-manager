@@ -18,5 +18,10 @@ func (app *application) routes() *chi.Mux {
 	r.Post("/api/v1/exec", app.ExecCommandInContainer)
 	r.Get("/api/v1/version", app.HandleVersion)
 
+	// OpenVPN profile management
+	r.Get("/api/v1/openvpn/profiles", app.GetOpenVPNProfilesHandler)
+	r.Post("/api/v1/openvpn/profiles", app.AddOpenVPNProfileHandler)
+	r.Delete("/api/v1/openvpn/profiles", app.DeleteOpenVPNProfileHandler)
+
 	return r
 }
