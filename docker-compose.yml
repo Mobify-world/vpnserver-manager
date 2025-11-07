@@ -1,13 +1,12 @@
 services:
   ipsec-mobify-server:
-    build: ./ipsec
-    image: lashamaruashvili/ipsec-mobify:latest
+    image: lmobify/ipsec-mobify:latest
     container_name: ipsec-mobify-server
     ports:
       - "500:500/udp"
       - "4500:4500/udp"
     volumes:
-      - /lib/modules:/lib/modules:ro
+      -  /lib/modules:/lib/modules:ro
       - ./etc/ppp/chap-secrets:/etc/ppp/chap-secrets
       - ./etc/ipsec.d/passwd:/etc/ipsec.d/passwd
       - ./etc/ipsec.secrets:/etc/ipsec.secrets
@@ -15,8 +14,7 @@ services:
     restart: always
 
   goserver:
-    build: ./goserver
-    image: lashamaruashvili/goserver:latest
+    image: lmobify/goserver:latest
     container_name: goserver
     ports:
       - "8080:8080"
