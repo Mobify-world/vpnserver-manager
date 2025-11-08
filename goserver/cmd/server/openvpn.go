@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // OpenVPN request/response structs
@@ -206,20 +210,68 @@ func (app *application) GetOpenVPNProfilesHandler(w http.ResponseWriter, r *http
 }
 
 // Helper function to execute commands on the host using os/exec
+// Helper function to execute commands on the HOST using Docker
 func (app *application) dockerExecHost(cmd []string) (string, error) {
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Execute command on the host by running a new container with host PID namespace
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Execute command directly since /root is mounted
-	execCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-	output, err := execCmd.CombinedOutput()
-
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return string(output), fmt.Errorf("command failed: %v, output: %s", err, string(output))
+		return "", err
+	}
+	defer cli.Close()
+
+	// Create a container that runs in host PID namespace and executes the command
+	containerConfig := &container.Config{
+		Image: "ubuntu:latest", // Use Ubuntu to run the script
+		Cmd:   cmd,
+		Tty:   false,
 	}
 
-	return string(output), nil
+	hostConfig := &container.HostConfig{
+		AutoRemove: true,
+		Binds: []string{
+			"/root:/root",
+			"/etc/openvpn:/etc/openvpn",
+		},
+		PidMode:    "host",
+		Privileged: true,
+	}
+
+	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create container: %v", err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return "", fmt.Errorf("failed to start container: %v", err)
+	}
+
+	// Wait for container to finish
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return "", err
+		}
+	case <-statusCh:
+	}
+
+	// Get logs
+	out, err := cli.ContainerLogs(ctx, resp.ID, container.LogsOptions{ShowStdout: true, ShowStderr: true})
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	var buf bytes.Buffer
+	_, err = stdcopy.StdCopy(&buf, &buf, out)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 // Helper function to validate client names
