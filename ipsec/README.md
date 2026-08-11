@@ -1,3 +1,10 @@
+> **Mobify note:** This directory is a **vendored upstream** IPsec-on-Docker tree (hwdsl2 lineage).  
+> The **root** [`docker-compose.yml`](../docker-compose.yml) runs the prebuilt image `lmobify/ipsec-mobify:latest` and does **not** necessarily `build: ./ipsec`.  
+> Nested `docker-compose.yml` here is upstream’s example stack — not the Mobify node agent wiring.  
+> Deploy: [`docs/DEPLOY.md`](../docs/DEPLOY.md) · Map: [`README.md`](../README.md)
+
+---
+
 [English](README.md) | [中文](README-zh.md)
 
 # IPsec VPN Server on Docker
