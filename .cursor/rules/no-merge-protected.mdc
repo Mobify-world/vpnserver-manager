@@ -1,0 +1,23 @@
+---
+description: Test mode — no merges to protected branches, no deploys
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Protected branches (test mode)
+
+Humans own merges and deploys for ~1–2 months. GitHub branch rulesets may be unavailable on this private org (no Team plan) — this rule is mandatory for Cursor/agents anyway.
+
+## Never
+- Merge into `main`, `master`, or `develop` (no merge button/API, no squash/rebase onto those branches).
+- Push commits directly to `main`, `master`, or `develop`.
+- Force-push or delete `main`, `master`, or `develop`.
+- Deploy, release, publish stores, or tag production.
+- Bypass branch protection or ask the user to weaken GitHub App permissions for merging.
+
+## Always
+- Work on a feature branch (or the existing docs branch for this PR).
+- Open or update a PR that targets the correct integration branch.
+- Stop when the PR is ready for **human review**.
+- Reply with the PR URL; the user or their developers will merge and deploy manually.
